@@ -51,7 +51,6 @@ func save(c echo.Context) error {
 	}
 
 	// curl -F "name=Joe Smith" -F "avatar=@/mnt/c/Users/JIHEA/Pictures/comoozi.png" http://localhost:1323/save
-
 	return c.HTML(http.StatusOK, "<b>Thank you! "+name+"</b>")
 
 }
