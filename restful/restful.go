@@ -1,7 +1,5 @@
 // package main
 
-package restful
-
 // import (
 // 	"net/http"
 
