@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -25,6 +24,17 @@ func accessible(c echo.Context) error {
 }
 
 // Handler for the login route
+/*
+curl --location --request POST 'http://localhost:8080/login' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--data-urlencode 'username=user' \
+--data-urlencode 'password=password'
+*/
+
+/*
+TOKEN=?
+curl --location --request GET 'http://localhost:8080/restricted' --header "Authorization: Bearer $TOKEN"
+*/
 func login(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
@@ -36,14 +46,14 @@ func login(c echo.Context) error {
 			Name:  "John Doe",
 			Admin: true,
 			RegisteredClaims: jwt.RegisteredClaims{
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second * 30)),
+				Subject:   "login",
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second * 60)),
 			},
 		}
 
 		// Create token
-
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		log.Println("SigningMethodHS256 : ", *jwt.SigningMethodHS256)
 
 		// Generate encoded token and send it as response
 		t, err := token.SignedString([]byte("secret"))
@@ -64,9 +74,22 @@ func restricted(c echo.Context) error {
 	user := c.Get("user").(*jwt.Token)
 	claims := user.Claims.(*JWTCustomClaims)
 	name := claims.Name
-	return c.String(http.StatusOK, "Welcome "+name+"!")
+	expiresAt := claims.ExpiresAt.Format(time.DateTime)
+	// 	return c.String(http.StatusOK, "Welcome "+name+"!")
+	return c.JSON(http.StatusOK, echo.Map{
+		"message": "Welcome " + name + "!",
+		"user":    user,
+		"claims":  claims,
+		"expires": expiresAt,
+	})
 }
 
+func jwtValid(c echo.Context) error {
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"message": "jwtValid",
+	})
+}
 func main() {
 	e := echo.New()
 
