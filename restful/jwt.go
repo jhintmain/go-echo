@@ -20,6 +20,7 @@ type JWTCustomClaims struct {
 
 // Handler for the unprotected route
 func accessible(c echo.Context) error {
+	c.String(http.StatusOK, "Accessible")
 	return c.String(http.StatusOK, "Accessible")
 }
 
