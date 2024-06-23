@@ -8,11 +8,25 @@ import (
 	"strings"
 )
 
+//type LineInfo struct {
+//	row  int
+//	line string
+//}
+//type FileInfo struct {
+//	filename string
+//	lines    []LineInfo
+//}
+
 func getFileList(path string) ([]string, error) {
 	return filepath.Glob(path)
 }
 
 func printAllFiles(files []string, word string) {
+	//var wg sync.WaitGroup
+	ch := make(chan FileInfo)
+	revCtn := 0
+	cnt := len(files)
+
 	for _, path := range files {
 		filelist, err := getFileList(path)
 		if err != nil {
@@ -21,18 +35,30 @@ func printAllFiles(files []string, word string) {
 		}
 
 		for _, name := range filelist {
-			printFile(name, word)
+			go printFile(name, word, ch)
 			//fmt.Println(name)
 		}
 	}
+	for fileinfo := range ch {
+		fmt.Println(fileinfo)
+		revCtn++
+		if revCtn == cnt {
+			break
+		}
+	}
 }
-func printFile(filename, word string) {
+func printFile(filename, word string, ch chan FileInfo) {
+
 	file, err := os.Open(filename)
 	if err != nil {
 		fmt.Println("open file err : ", err)
 		return
 	}
 	defer file.Close()
+
+	lineinfo := []LineInfo{}
+	fileinfo := FileInfo{filename, lineinfo}
+
 	fmt.Println(filename)
 	fmt.Println("----------------------------")
 	scanner := bufio.NewScanner(file)
@@ -40,9 +66,11 @@ func printFile(filename, word string) {
 	for scanner.Scan() {
 		row++
 		if strings.Contains(scanner.Text(), word) {
+			lineinfo = append(fileinfo.lines, LineInfo{row, scanner.Text()})
 			fmt.Println(row, scanner.Text())
 		}
 	}
+	ch <- fileinfo
 	fmt.Println("----------------------------\n")
 }
 
