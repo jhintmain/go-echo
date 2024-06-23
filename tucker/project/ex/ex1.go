@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,21 +22,25 @@ func GetFileList(path string) ([]string, error) {
 	return filepath.Glob(path)
 }
 
-func GetFileList2(root string) []string {
+func GetFileListUnder(pattern string) ([]string, error) {
 	var files []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() {
-			files = append(files, path)
+			_, err := filepath.Match(pattern, info.Name())
+			if err == nil {
+				files = append(files, path)
+			}
 		}
 		return nil
 	})
 	if err != nil {
 		println("파일을 찾을 수 없습니다 err : ", err)
+		return files, err
 	}
-	return files
+	return files, nil
 }
 
 func FindWordInFile(word, filename string, ch chan FindInfo, wg *sync.WaitGroup) {
@@ -65,7 +68,8 @@ func FindWordInFile(word, filename string, ch chan FindInfo, wg *sync.WaitGroup)
 
 func FindWordInAllFiles(word, path string) []FindInfo {
 	var findInfos []FindInfo
-	filelist, err := GetFileList(path)
+	//filelist, err := GetFileList(path)
+	filelist, err := GetFileListUnder(path)
 	if err != nil {
 		println("파일을 찾을 수 없습니다 err : ", err)
 		return findInfos
@@ -74,8 +78,6 @@ func FindWordInAllFiles(word, path string) []FindInfo {
 	// 채널 생성
 	var wg sync.WaitGroup
 	ch := make(chan FindInfo)
-	//cnt := len(filelist)
-	//revCtn := 0
 
 	for _, filename := range filelist {
 		wg.Add(1)
@@ -89,10 +91,6 @@ func FindWordInAllFiles(word, path string) []FindInfo {
 
 	for findInfo := range ch {
 		findInfos = append(findInfos, findInfo)
-		//revCtn++
-		//if revCtn == cnt {
-		//	break
-		//}
 	}
 	return findInfos
 }
@@ -106,15 +104,7 @@ func main() {
 	files := os.Args[2:]
 	var fileInfos []FindInfo
 
-	dir, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-		return
-
-	}
 	for _, path := range files {
-		fmt.Println(GetFileList2(dir))
-
 		fileInfos = append(fileInfos, FindWordInAllFiles(word, path)...)
 	}
 	for _, fileInfo := range fileInfos {
