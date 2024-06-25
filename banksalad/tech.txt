@@ -1,0 +1,87 @@
+# 뱅크 샐러드 코딩 컨벤션
+참고 url :https://blog.banksalad.com/tech/go-best-practice-in-banksalad/
+
+
+ 1. don't panic(fatal)
+ - 프로세스를 종료시키는 어떤코드도 사용하지않음
+ - panic(fatal) 을 쓸때는 main.go 같은 서버 어플리케이션 초기화시점에만 사용
+ - 의도치 않은 panic(fatal)을 예방하기 위해 recovery 체인 추가권장
+    ex) echo 프레임워크 미들웨어
+
+2. error logging
+- 핸들러 내부에서 발생한 에러는 인터셉터 or 미들웨어에 의해 로깅 권장
+- defer 에서 발행한 에러는 무시하지않고  error레벨로 로깅
+- 에러 로깅은 parent에게 맡기는게 원칙
+
+3. named return
+- 함수(메소드) 반환형 표기시 이름까지 지정해주면 명확해짐
+
+4. Http client 설정
+- MaxIdleConnsPerHost를 100으로 맞춰서 사용했음
+* 장점
+    - 응답시간 감소, 연결 재사용증가, 서버부하 감소, 네트워크 효율 증가
+* 단점
+    - 메모리사용량 증가 정도..? 얼마나 증가하길래?
+* 결론은 , 메모리사용량은 높아지지만 속도가 빨라진다. 대량의 HTTP 요청을 빠르게 처리해야 하는 애플리케이션에서 유용할 수있다.
+- property의 프로젝트의 경우 한 50정도만 해도 충분할듯?
+
+5. HTTP connection 재사용
+- http response body는 반드시 drain 해주고 닫아주기
+
+6. slice(map) 선언시 len, cap 설정해주기
+- slice에 추가될 아이템 갯수를 미리 알고있다면 len을, 최소한 cap이라도 설정권장
+
+7. nil s
+---------------------------------------------
+# 2. error logging - 예제
+// ❌
+defer db.Close()
+
+// ✅
+defer func() {
+	if err := db.Close(); err != nil {
+		logrus.WithError(err).Error("failed to close db")
+	}
+}()
+
+// ❌
+if err := nil {
+	log.Println("failed to get user id: %d", userID)
+	return err
+}
+
+// ✅
+if err := nil {
+	return err
+}
+
+# 5. HTTP connection 재사용 - 예제
+resp, err := httpClient.Do(req)
+if err != nil {
+	return nil, errors.WithStack(err)
+}
+// 자원 해제 보장
+defer func() {
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		log.WithError(err).Error("failed to drain http response body")
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		log.WithError(err).Error("failed to close http response body")
+	}
+}()
+
+
+
+# 6. slice(map) 선언시 len, cap 설정해주기 - 예제
+// ❌
+ var ids []string
+ for _, u := range users {
+    ids = append(ids, u.id)
+ }
+
+ // ✅
+ ids := make([]string, len(users))
+ for i, u := range users {
+    ids[i] = u.id
+ }
